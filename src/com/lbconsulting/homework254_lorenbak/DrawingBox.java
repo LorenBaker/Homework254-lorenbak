@@ -1,17 +1,20 @@
 package com.lbconsulting.homework254_lorenbak;
 
 import android.graphics.Paint;
-import android.graphics.Rect;
+import android.graphics.RectF;
 
 public class DrawingBox {
 	private Paint mFillPaint = new Paint();
 	private Paint mStrokePaint = new Paint();
-	private Rect mBoxRect;
-	private Rect mPrevBoxRect;
-	private int mBoxSize;
-	private Rect mWorldRect = new Rect();
+	private RectF mBoxRect;
+	private RectF mBoxStrokeRect;
+	private RectF mPrevBoxRect;
+	private float mBoxSize;
+	private float mHalfBoxSize;
+	private RectF mWorldRect = new RectF();
+	private float mHalfStrokeSize;
 
-	public DrawingBox(int pxBoxSize, int fillColor, int strokeColor) {
+	public DrawingBox(float pxBoxSize, int fillColor, int strokeColor, float pxStrokeSize) {
 		setBoxSize(pxBoxSize);
 
 		getFillPaint().setStyle(Paint.Style.FILL);
@@ -19,109 +22,104 @@ public class DrawingBox {
 
 		getStrokePaint().setStyle(Paint.Style.STROKE);
 		getStrokePaint().setColor(strokeColor);
+		getStrokePaint().setStrokeWidth(pxStrokeSize);
 
-		mPrevBoxRect = new Rect();
+		mPrevBoxRect = new RectF();
 		mPrevBoxRect.left = -9999;
+
+		mHalfStrokeSize = pxStrokeSize / 2;
 	}
 
-	public Rect getBoxRect() {
+	public RectF getBoxRect() {
 		return mBoxRect;
 	}
 
 	public void setBoxRect(float x, float y) {
-		this.mBoxRect = populateBoxRect(x, y, mBoxSize);
+		this.mBoxRect = populateBoxRect(x, y);
 	}
 
 	public Paint getFillPaint() {
 		return mFillPaint;
 	}
 
-	/*	private void setFillPaint(Paint fillPaint) {
-			this.mFillPaint = fillPaint;
-		}*/
-
 	public Paint getStrokePaint() {
 		return mStrokePaint;
 	}
 
-	/*	private void setStrokePaint(Paint strokePaint) {
-			this.mStrokePaint = strokePaint;
-		}*/
-
-	public Rect getPrevBoxRect() {
+	public RectF getPrevBoxRect() {
 		return mPrevBoxRect;
 	}
 
 	public void setPrevBoxRect(float x, float y) {
-		this.mPrevBoxRect = populateBoxRect(x, y, mBoxSize);
+		this.mPrevBoxRect = populateBoxRect(x, y);
 	}
 
-	public int getBoxSize() {
+	public float getBoxSize() {
 		return mBoxSize;
 	}
 
-	public void setBoxSize(int pxBoxSize) {
+	public void setBoxSize(float pxBoxSize) {
 		this.mBoxSize = pxBoxSize;
+		this.mHalfBoxSize = pxBoxSize / 2;
 	}
 
-	public void setWorldRect(Rect worldRect) {
+	public void setWorldRect(RectF worldRect) {
 		mWorldRect = worldRect;
 	}
 
-	private Rect populateBoxRect(float x, float y, int boxSize) {
+	private RectF populateBoxRect(float x, float y) {
 
-		Rect resultRect = new Rect();
-		float halfBoxSize = boxSize / 2;
-		float left = x - halfBoxSize;
-		float top = y - halfBoxSize;
-		float right = x + halfBoxSize;
-		float bottom = y + halfBoxSize;
+		RectF resultRect = new RectF();
+
+		float left = x - mHalfBoxSize;
+		float top = y - mHalfBoxSize;
+		float right = x + mHalfBoxSize;
+		float bottom = y + mHalfBoxSize;
 
 		if (left < mWorldRect.left) {
 			left = mWorldRect.left;
-			right = mWorldRect.left + boxSize;
+			right = mWorldRect.left + mBoxSize;
 		}
 		if (top < mWorldRect.top) {
 			top = mWorldRect.top;
-			bottom = mWorldRect.top + boxSize;
+			bottom = mWorldRect.top + mBoxSize;
 		}
 
 		if (right > mWorldRect.right) {
 			right = mWorldRect.right;
-			left = mWorldRect.right - boxSize;
+			left = mWorldRect.right - mBoxSize;
 		}
 
 		if (bottom > mWorldRect.bottom) {
 			bottom = mWorldRect.bottom;
-			top = mWorldRect.bottom - boxSize;
+			top = mWorldRect.bottom - mBoxSize;
 		}
 
-		resultRect.left = Math.round(left);
-		resultRect.top = Math.round(top);
-		resultRect.right = Math.round(right);
-		resultRect.bottom = Math.round(bottom);
-
+		resultRect.set(left, top, right, bottom);
 		return resultRect;
 	}
 
 	public boolean isMoving(float x, float y) {
-		int posX = Math.round(x);
-		int posY = Math.round(y);
-		boolean result = false;
-		if (posX >= mBoxRect.left && posX <= mBoxRect.right) {
-			if (posY >= mBoxRect.top && posY <= mBoxRect.bottom) {
-				result = true;
-			}
-		}
-		return result;
+		return mBoxRect.contains(x, y);
 	}
 
-	public int getBoxX() {
-		return (mBoxRect.right - mBoxRect.left) / 2;
+	public float getBoxCenterX() {
+		return mBoxRect.centerX();
 	}
 
-	public int getBoxY() {
-		return (mBoxRect.bottom - mBoxRect.top) / 2;
+	public float getBoxCenterY() {
+		return mBoxRect.centerY();
+	}
+
+	public RectF getBoxStrokeRect() {
+		mBoxStrokeRect = new RectF();
+		float left = mBoxRect.left + mHalfStrokeSize;
+		float top = mBoxRect.top + mHalfStrokeSize;
+		float right = mBoxRect.right - mHalfStrokeSize;
+		float bottom = mBoxRect.bottom - mHalfStrokeSize;
+		mBoxStrokeRect.set(left, top, right, bottom);
+
+		return mBoxStrokeRect;
 	}
 
 }

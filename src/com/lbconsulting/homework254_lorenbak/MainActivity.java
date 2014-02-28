@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.Window;
 
 public class MainActivity extends Activity {
 
@@ -13,16 +14,20 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		MyLog.i("MainACTIVITY", "onCreate");
+		// Hide the Action bar
+		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
 		setContentView(R.layout.activity_main);
 		projectView = (DrawingView) findViewById(R.id.mainView);
 		if (projectView != null) {
 			projectView.setBackgroundColor(Color.BLACK);
-			int pxBoxSize = HW254Utilities.dpToPx(this, 60);
+			float pxBoxSize = HW254Utilities.dpToPx(this, 60);
+			float pxStrokeSize = HW254Utilities.dpToPx(this, 8);
 
-			DrawingBox redBox = new DrawingBox(pxBoxSize, Color.RED, Color.WHITE);
-			projectView.setRedDrawingBox(redBox);
+			DrawingBox BlueBox = new DrawingBox(pxBoxSize, Color.RED, Color.WHITE, pxStrokeSize);
+			projectView.setRedDrawingBox(BlueBox);
 
-			DrawingBox blueBox = new DrawingBox(pxBoxSize, Color.BLUE, Color.WHITE);
+			DrawingBox blueBox = new DrawingBox(pxBoxSize, Color.BLUE, Color.WHITE, pxStrokeSize);
 			projectView.setBlueDrawingBox(blueBox);
 		}
 	}
@@ -31,9 +36,15 @@ public class MainActivity extends Activity {
 	protected void onResume() {
 		MyLog.i("MainACTIVITY", "onResume");
 		SharedPreferences storedStates = getSharedPreferences("HW254", MODE_PRIVATE);
-		mActiveListID = storedStates.getLong("ActiveListID", -1);
-		mActiveItemID = storedStates.getLong("ActiveItemID", -1);
-		mActiveListPosition = storedStates.getInt("ActiveListPosition", -1);
+
+		float redBoxCenterX = storedStates.getFloat("redBoxCenterX", -1);
+		float redBoxCenterY = storedStates.getFloat("redBoxCenterY", -1);
+		projectView.InitializeRedBoxLocation(redBoxCenterX, redBoxCenterY);
+
+		float blueBoxCenterX = storedStates.getFloat("blueBoxCenterX", -1);
+		float blueBoxCenterY = storedStates.getFloat("blueBoxCenterY", -1);
+		projectView.InitializeBlueBoxLocation(blueBoxCenterX, blueBoxCenterY);
+
 		super.onResume();
 	}
 
@@ -47,15 +58,15 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onPause() {
 		MyLog.i("MainACTIVITY", "onPause");
-		// save activity state
+		// save Blue and blue box rectangles
 		SharedPreferences preferences = getSharedPreferences("HW254", MODE_PRIVATE);
 		SharedPreferences.Editor applicationStates = preferences.edit();
 
-		applicationStates.putInt("redBoxX", projectView.getRedBoxX());
-		applicationStates.putInt("redBoxY", projectView.getRedBoxY());
+		applicationStates.putFloat("redBoxCenterX", projectView.getRedBoxRect().centerX());
+		applicationStates.putFloat("redBoxCenterY", projectView.getRedBoxRect().centerY());
 
-		applicationStates.putInt("redBoxX", projectView.getBlueBoxX());
-		applicationStates.putInt("redBoxY", projectView.getBlueBoxY());
+		applicationStates.putFloat("blueBoxCenterX", projectView.getBlueBoxRect().centerX());
+		applicationStates.putFloat("blueBoxCenterY", projectView.getBlueBoxRect().centerY());
 
 		applicationStates.commit();
 		super.onPause();

@@ -5,7 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
+import android.graphics.RectF;
 import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -21,6 +21,12 @@ public class DrawingView extends View {
 
 	private boolean isRedBoxMoving = false;
 	private boolean isBlueBoxMoving = false;
+
+	private float mInitialRedBoxCenterX;
+	private float mInitialRedBoxCenterY;
+
+	private float mInitialBlueBoxCenterX;
+	private float mInitialBlueBoxCenterY;
 
 	public DrawingView(Context context, AttributeSet attrs, int defStyleAttr) {
 		super(context, attrs, defStyleAttr);
@@ -38,24 +44,16 @@ public class DrawingView extends View {
 		mRedBox = box;
 	}
 
-	public int getRedBoxX() {
-		return mRedBox.getBoxX();
-	}
-
-	public int getRedBoxY() {
-		return mRedBox.getBoxY();
+	public RectF getRedBoxRect() {
+		return mRedBox.getBoxRect();
 	}
 
 	public void setBlueDrawingBox(DrawingBox box) {
 		mBlueBox = box;
 	}
 
-	public int getBlueBoxX() {
-		return mBlueBox.getBoxX();
-	}
-
-	public int getBlueBoxY() {
-		return mBlueBox.getBoxY();
+	public RectF getBlueBoxRect() {
+		return mBlueBox.getBoxRect();
 	}
 
 	@Override
@@ -67,7 +65,7 @@ public class DrawingView extends View {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-
+		boolean onTouchEventHandled = false;
 		switch (event.getAction() & MotionEvent.ACTION_MASK) {
 
 		case MotionEvent.ACTION_DOWN:
@@ -83,13 +81,25 @@ public class DrawingView extends View {
 				}
 			}
 
-			return true;
+			onTouchEventHandled = true;
+			break;
 
 		case MotionEvent.ACTION_UP:
 			MyLog.d("DrawingView", "ACTION_UP");
-			isRedBoxMoving = false;
-			isBlueBoxMoving = false;
-			return false;
+
+			if (isRedBoxMoving) {
+				isRedBoxMoving = false;
+				MyLog.d("DrawingView", "onTouchEvent; RED_BOX action_up; X:" + event.getX() + " Y:" + event.getY());
+				addRedBoxPoint(mRedBox.getBoxCenterX(), mRedBox.getBoxCenterY());
+			}
+
+			if (isBlueBoxMoving) {
+				isBlueBoxMoving = false;
+				MyLog.d("DrawingView", "onTouchEvent; BLUE_BOX action_up; X:" + event.getX() + " Y:" + event.getY());
+				addBlueBoxPoint(mBlueBox.getBoxCenterX(), mBlueBox.getBoxCenterY());
+			}
+			onTouchEventHandled = true;
+			break;
 
 		case MotionEvent.ACTION_MOVE:
 
@@ -120,33 +130,56 @@ public class DrawingView extends View {
 			}
 
 			// Return true because we are handling the event
-			return true;
+			onTouchEventHandled = true;
+			break;
+
 		default:
 			break;
 		}
 
-		return false;
+		return onTouchEventHandled;
 	}
 
 	private void addRedBoxPoint(float x, float y) {
 
 		if (mRedBox.getPrevBoxRect().left > -1) {
+			// paint the previous red box location with the background color
 			mCanvas.drawRect(mRedBox.getPrevBoxRect(), mBackgroundPaint);
-
+			// draw the blue box if the red box intersect with the blue box
+			if (mRedBox.getPrevBoxRect().intersect(mBlueBox.getBoxRect())) {
+				mCanvas.drawRect(mBlueBox.getBoxRect(), mBlueBox.getFillPaint());
+			}
 		}
+
+		// set the new red box location and draw it
 		mRedBox.setBoxRect(x, y);
 		mCanvas.drawRect(mRedBox.getBoxRect(), mRedBox.getFillPaint());
+
+		if (isRedBoxMoving) {
+			// draw a stroke around the red box
+			mCanvas.drawRect(mRedBox.getBoxStrokeRect(), mRedBox.getStrokePaint());
+		}
 		mRedBox.setPrevBoxRect(x, y);
 	}
 
 	private void addBlueBoxPoint(float x, float y) {
 
 		if (mBlueBox.getPrevBoxRect().left > -1) {
+			// paint the previous blue box location with the background color
 			mCanvas.drawRect(mBlueBox.getPrevBoxRect(), mBackgroundPaint);
-
+			// draw the red box if the blue box intersect with the red box
+			if (mBlueBox.getPrevBoxRect().intersect(mRedBox.getBoxRect())) {
+				mCanvas.drawRect(mRedBox.getBoxRect(), mRedBox.getFillPaint());
+			}
 		}
+
+		// set the new blue box location and draw it
 		mBlueBox.setBoxRect(x, y);
 		mCanvas.drawRect(mBlueBox.getBoxRect(), mBlueBox.getFillPaint());
+		if (isBlueBoxMoving) {
+			// draw a stroke around the blue box
+			mCanvas.drawRect(mBlueBox.getBoxStrokeRect(), mRedBox.getStrokePaint());
+		}
 		mBlueBox.setPrevBoxRect(x, y);
 	}
 
@@ -155,15 +188,11 @@ public class DrawingView extends View {
 		super.onSizeChanged(w, h, oldw, oldh);
 		MyLog.d("DrawingView", "onSizeChanged; w:" + w + " h:" + h);
 
-		Rect worldRect = new Rect();
-		worldRect.left = 0;
-		worldRect.top = 0;
-		worldRect.right = w;
-		worldRect.bottom = h;
+		RectF worldRect = new RectF();
+		worldRect.set(0, 0, w, h);
 
 		mRedBox.setWorldRect(worldRect);
 		mBlueBox.setWorldRect(worldRect);
-		//mRedBox.setBoxRect(0, 0);
 
 		mBackgroundPaint.setStyle(Paint.Style.FILL);
 		mBackgroundPaint.setColor(Color.BLACK);
@@ -173,12 +202,6 @@ public class DrawingView extends View {
 		mCanvas = new Canvas(mBitmap);
 
 	}
-
-	/*	public void setRedDrawingBoxPosition(float x, float y) {
-			// TODO Auto-generated method stub
-			mRedBox.setBoxRect(x, y);
-			invalidate();
-		}*/
 
 	@Override
 	protected void onAttachedToWindow() {
@@ -212,8 +235,8 @@ public class DrawingView extends View {
 	protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
 		MyLog.d("DrawingView", "onLayout");
 		// TODO Auto-generated method stub
-		addRedBoxPoint(0, 0);
-		addBlueBoxPoint(2000, 2000);
+		addRedBoxPoint(mInitialRedBoxCenterX, mInitialRedBoxCenterY);
+		addBlueBoxPoint(mInitialBlueBoxCenterX, mInitialBlueBoxCenterY);
 		super.onLayout(changed, left, top, right, bottom);
 	}
 
@@ -243,6 +266,26 @@ public class DrawingView extends View {
 		MyLog.d("DrawingView", "onWindowVisibilityChanged");
 		// TODO Auto-generated method stub
 		super.onWindowVisibilityChanged(visibility);
+	}
+
+	public void InitializeRedBoxLocation(float redBoxCenterX, float redBoxCenterY) {
+		if (redBoxCenterX < 0) {
+			mInitialRedBoxCenterX = 0;
+			mInitialRedBoxCenterY = 0;
+		} else {
+			mInitialRedBoxCenterX = redBoxCenterX;
+			mInitialRedBoxCenterY = redBoxCenterY;
+		}
+	}
+
+	public void InitializeBlueBoxLocation(float blueBoxCenterX, float blueBoxCenterY) {
+		if (blueBoxCenterX < 0) {
+			mInitialBlueBoxCenterX = 999999;
+			mInitialBlueBoxCenterY = 999999;
+		} else {
+			mInitialBlueBoxCenterX = blueBoxCenterX;
+			mInitialBlueBoxCenterY = blueBoxCenterY;
+		}
 	}
 
 }
