@@ -5,25 +5,22 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
+import android.os.Parcelable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
 public class DrawingView extends View {
 
-	private static String TAG = "DrawingView";
-
-	// PHASE 1 Create some needed variables
-	private Paint mCirclePaint = new Paint();
 	private Paint mBackgroundPaint = new Paint();
-	//private volatile ArrayList<Point> mPoints = new ArrayList<Point>();
-
-	// PHASE 2 Create some more needed variables
 	private Bitmap mBitmap;
 	private Canvas mCanvas;
-	private float mPrevX;
-	private float mPrevY;
+	private DrawingBox mRedBox;
+	private DrawingBox mBlueBox;
+
+	private boolean isRedBoxMoving = false;
+	private boolean isBlueBoxMoving = false;
 
 	public DrawingView(Context context, AttributeSet attrs, int defStyleAttr) {
 		super(context, attrs, defStyleAttr);
@@ -37,23 +34,35 @@ public class DrawingView extends View {
 		super(context);
 	}
 
+	public void setRedDrawingBox(DrawingBox box) {
+		mRedBox = box;
+	}
+
+	public int getRedBoxX() {
+		return mRedBox.getBoxX();
+	}
+
+	public int getRedBoxY() {
+		return mRedBox.getBoxY();
+	}
+
+	public void setBlueDrawingBox(DrawingBox box) {
+		mBlueBox = box;
+	}
+
+	public int getBlueBoxX() {
+		return mBlueBox.getBoxX();
+	}
+
+	public int getBlueBoxY() {
+		return mBlueBox.getBoxY();
+	}
+
 	@Override
 	protected void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
-
-		Log.d(TAG, "onDraw");
-
-		// PHASE 1 Get the Points to draw and draw them to the Canvas
-		/*		if (mPoints.size() > 0) {
-					for (Point p : mPoints) {
-						// What impact does the following have?
-						Log.d("!!!", "p: " + p.toString());
-						canvas.drawCircle(p.x, p.y, p.size * 50.0f, mCirclePaint);
-					}
-				}*/
-		// PHASE 2 Draw our composed result
+		//MyLog.d("DrawingView", "onDraw");
 		canvas.drawBitmap(mBitmap, 0, 0, null);
-
 	}
 
 	@Override
@@ -62,83 +71,178 @@ public class DrawingView extends View {
 		switch (event.getAction() & MotionEvent.ACTION_MASK) {
 
 		case MotionEvent.ACTION_DOWN:
-			Log.d(TAG, "ACTION_DOWN");
-			return true;
-
-		case MotionEvent.ACTION_UP:
-			Log.d(TAG, "ACTION_UP");
-			return false;
-
-		case MotionEvent.ACTION_MOVE:
-			//Log.i(TAG, "ACTION_MOVE");
-
-			// PHASE 1 What could we do to improve the quality?
-			int historySize = event.getHistorySize();
-			if (historySize > 0) {
-				for (int i = 0; i < historySize; i++) {
-					addPoint(
-							event.getHistoricalX(i),
-							event.getHistoricalY(i),
-							event.getHistoricalPressure(i),
-							event.getHistoricalSize(i));
+			MyLog.d("DrawingView", "ACTION_DOWN");
+			isRedBoxMoving = mRedBox.isMoving(event.getX(), event.getY());
+			if (isRedBoxMoving) {
+				MyLog.d("DrawingView", "onTouchEvent; RED_BOX action_down; X:" + event.getX() + " Y:" + event.getY());
+			} else {
+				isBlueBoxMoving = mBlueBox.isMoving(event.getX(), event.getY());
+				if (isBlueBoxMoving) {
+					MyLog.d("DrawingView",
+							"onTouchEvent; BLUE_BOX action_down; X:" + event.getX() + " Y:" + event.getY());
 				}
 			}
 
-			// PHASE 1 + 2 Add events as Points
-			addPoint(event.getX(), event.getY(), event.getPressure(), event.getSize());
-			Log.e("TAG", "ACTION_MOVE; X:" + event.getX() + " Y:" + event.getY() + " pres:" + event.getPressure()
-					+ " size:" + event.getSize());
+			return true;
 
-			// PHASE 1 + 2 How do we get ourselves to call onDraw()?
-			this.invalidate();
+		case MotionEvent.ACTION_UP:
+			MyLog.d("DrawingView", "ACTION_UP");
+			isRedBoxMoving = false;
+			isBlueBoxMoving = false;
+			return false;
+
+		case MotionEvent.ACTION_MOVE:
+
+			if (isRedBoxMoving) {
+				//MyLog.w("DrawingView", "onTouchEvent; RED_BOX action_move; X:" + event.getX() + " Y:" + event.getY());
+				int historySize = event.getHistorySize();
+				if (historySize > 0) {
+					for (int i = 0; i < historySize; i++) {
+						addRedBoxPoint(event.getHistoricalX(i), event.getHistoricalY(i));
+					}
+				}
+
+				addRedBoxPoint(event.getX(), event.getY());
+				this.invalidate();
+			}
+
+			if (isBlueBoxMoving) {
+				//MyLog.w("DrawingView", "onTouchEvent; BKUE_BOX action_move; X:" + event.getX() + " Y:" + event.getY());
+				int historySize = event.getHistorySize();
+				if (historySize > 0) {
+					for (int i = 0; i < historySize; i++) {
+						addBlueBoxPoint(event.getHistoricalX(i), event.getHistoricalY(i));
+					}
+				}
+
+				addBlueBoxPoint(event.getX(), event.getY());
+				this.invalidate();
+			}
+
 			// Return true because we are handling the event
 			return true;
+		default:
+			break;
 		}
 
 		return false;
 	}
 
-	private void addPoint(float x, float y, float pressure, float size) {
+	private void addRedBoxPoint(float x, float y) {
 
-		// PHASE 1 Add to our Points collection
-		//mPoints.add(new Point(x, y, pressure, size));
+		if (mRedBox.getPrevBoxRect().left > -1) {
+			mCanvas.drawRect(mRedBox.getPrevBoxRect(), mBackgroundPaint);
 
-		// PHASE 2 Determine an appropriate radius
-		float radius = 60;
-		/*if (pressure != 1.0f) {
-			mCirclePaint.setAlpha(Math.round(pressure * 255));
-			radius = pressure > 1.0f ? 1.0f : pressure * 100.0f;
-		} else {
-			radius = size * 50.0f;
 		}
-		*/
-		// PHASE 2 Do our drawing
-		if (mPrevX > -1) {
-			mCanvas.drawCircle(mPrevX, mPrevY, radius, mBackgroundPaint);
-		}
-		mCanvas.drawCircle(x, y, radius, mCirclePaint);
-		mPrevX = x;
-		mPrevY = y;
+		mRedBox.setBoxRect(x, y);
+		mCanvas.drawRect(mRedBox.getBoxRect(), mRedBox.getFillPaint());
+		mRedBox.setPrevBoxRect(x, y);
+	}
 
+	private void addBlueBoxPoint(float x, float y) {
+
+		if (mBlueBox.getPrevBoxRect().left > -1) {
+			mCanvas.drawRect(mBlueBox.getPrevBoxRect(), mBackgroundPaint);
+
+		}
+		mBlueBox.setBoxRect(x, y);
+		mCanvas.drawRect(mBlueBox.getBoxRect(), mBlueBox.getFillPaint());
+		mBlueBox.setPrevBoxRect(x, y);
 	}
 
 	@Override
 	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
 		super.onSizeChanged(w, h, oldw, oldh);
-		Log.d(TAG, "onSizeChanged; w:" + w + " h:" + h);
+		MyLog.d("DrawingView", "onSizeChanged; w:" + w + " h:" + h);
 
-		// PHASE 1 + 2 : Initialize the Paint value
-		mCirclePaint.setStyle(Paint.Style.FILL);
-		mCirclePaint.setColor(Color.RED);
+		Rect worldRect = new Rect();
+		worldRect.left = 0;
+		worldRect.top = 0;
+		worldRect.right = w;
+		worldRect.bottom = h;
+
+		mRedBox.setWorldRect(worldRect);
+		mBlueBox.setWorldRect(worldRect);
+		//mRedBox.setBoxRect(0, 0);
 
 		mBackgroundPaint.setStyle(Paint.Style.FILL);
 		mBackgroundPaint.setColor(Color.BLACK);
-		mPrevX = -1;
-		mPrevY = -1;
 
-		// PHASE 2 : Initialize our interim storage
+		// Initialize our interim storage
 		mBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
 		mCanvas = new Canvas(mBitmap);
+
+	}
+
+	/*	public void setRedDrawingBoxPosition(float x, float y) {
+			// TODO Auto-generated method stub
+			mRedBox.setBoxRect(x, y);
+			invalidate();
+		}*/
+
+	@Override
+	protected void onAttachedToWindow() {
+		MyLog.d("DrawingView", "onAttachedToWindow");
+		// TODO Auto-generated method stub
+		super.onAttachedToWindow();
+	}
+
+	@Override
+	protected int[] onCreateDrawableState(int extraSpace) {
+		MyLog.d("DrawingView", "onCreateDrawableState");
+		// TODO Auto-generated method stub
+		return super.onCreateDrawableState(extraSpace);
+	}
+
+	@Override
+	protected void onDetachedFromWindow() {
+		MyLog.d("DrawingView", "onDetachedFromWindow");
+		// TODO Auto-generated method stub
+		super.onDetachedFromWindow();
+	}
+
+	@Override
+	protected void onFinishInflate() {
+		MyLog.d("DrawingView", "onFinishInflate");
+		// TODO Auto-generated method stub
+		super.onFinishInflate();
+	}
+
+	@Override
+	protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+		MyLog.d("DrawingView", "onLayout");
+		// TODO Auto-generated method stub
+		addRedBoxPoint(0, 0);
+		addBlueBoxPoint(2000, 2000);
+		super.onLayout(changed, left, top, right, bottom);
+	}
+
+	@Override
+	protected void onRestoreInstanceState(Parcelable state) {
+		MyLog.d("DrawingView", "onRestoreInstanceState");
+		// TODO Auto-generated method stub
+		super.onRestoreInstanceState(state);
+	}
+
+	@Override
+	protected Parcelable onSaveInstanceState() {
+		MyLog.d("DrawingView", "onSaveInstanceState");
+		// TODO Auto-generated method stub
+		return super.onSaveInstanceState();
+	}
+
+	@Override
+	protected boolean onSetAlpha(int alpha) {
+		MyLog.d("DrawingView", "onSetAlpha");
+		// TODO Auto-generated method stub
+		return super.onSetAlpha(alpha);
+	}
+
+	@Override
+	protected void onWindowVisibilityChanged(int visibility) {
+		MyLog.d("DrawingView", "onWindowVisibilityChanged");
+		// TODO Auto-generated method stub
+		super.onWindowVisibilityChanged(visibility);
 	}
 
 }
