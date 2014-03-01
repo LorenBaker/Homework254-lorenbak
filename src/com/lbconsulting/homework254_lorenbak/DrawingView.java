@@ -1,26 +1,38 @@
 package com.lbconsulting.homework254_lorenbak;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.os.Parcelable;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+/**
+ * The appliction's custom view Handles all canvas drawing
+ * 
+ * @author Loren
+ * 
+ */
 public class DrawingView extends View {
 
-	private Paint mBackgroundPaint = new Paint();
-	private Bitmap mBitmap;
+	// create the view's objects and variables
 	private Canvas mCanvas;
+	private Bitmap mBitmap;
+
 	private DrawingBox mRedBox;
 	private DrawingBox mBlueBox;
+	private ResetButton mResetButton;
+
+	private Paint mBackgroundPaint = new Paint();
 
 	private boolean isRedBoxMoving = false;
 	private boolean isBlueBoxMoving = false;
+	private boolean isResetButtonTouched = false;
 
 	private float mInitialRedBoxCenterX;
 	private float mInitialRedBoxCenterY;
@@ -40,6 +52,7 @@ public class DrawingView extends View {
 		super(context);
 	}
 
+	// box and reset button getters and setters
 	public void setRedDrawingBox(DrawingBox box) {
 		mRedBox = box;
 	}
@@ -56,6 +69,10 @@ public class DrawingView extends View {
 		return mBlueBox.getBoxRect();
 	}
 
+	public void setResetButton(ResetButton resetButton) {
+		mResetButton = resetButton;
+	}
+
 	@Override
 	protected void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
@@ -69,40 +86,64 @@ public class DrawingView extends View {
 		switch (event.getAction() & MotionEvent.ACTION_MASK) {
 
 		case MotionEvent.ACTION_DOWN:
-			MyLog.d("DrawingView", "ACTION_DOWN");
-			isRedBoxMoving = mRedBox.isMoving(event.getX(), event.getY());
-			if (isRedBoxMoving) {
+			// Local broadcast intent. Used to play action down sound.
+			Intent intent = new Intent(MainActivity.ACTION_DOWN_BROADCAST_KEY);
+
+			// Determine view object has been selected. 
+			// Play action down sound if a box is selected.
+			if (mRedBox.isMoving(event.getX(), event.getY())) {
+				isRedBoxMoving = true;
+				LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
 				MyLog.d("DrawingView", "onTouchEvent; RED_BOX action_down; X:" + event.getX() + " Y:" + event.getY());
-			} else {
-				isBlueBoxMoving = mBlueBox.isMoving(event.getX(), event.getY());
-				if (isBlueBoxMoving) {
-					MyLog.d("DrawingView",
-							"onTouchEvent; BLUE_BOX action_down; X:" + event.getX() + " Y:" + event.getY());
-				}
+
+			} else if (mBlueBox.isMoving(event.getX(), event.getY())) {
+				isBlueBoxMoving = true;
+				LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
+				MyLog.d("DrawingView",
+						"onTouchEvent; BLUE_BOX action_down; X:" + event.getX() + " Y:" + event.getY());
+
+			} else if (mResetButton.isResetButtonTouched(event.getX(), event.getY())) {
+				isResetButtonTouched = true;
+				Intent resetBtnIntent = new Intent(MainActivity.ACTION_RESET_DOWN_BROADCAST_KEY);
+				LocalBroadcastManager.getInstance(getContext()).sendBroadcast(resetBtnIntent);
+				MyLog.d("DrawingView", "onTouchEvent; RESET action_down; X:" + event.getX() + " Y:" + event.getY());
+				// reset the box location
+				addRedBoxPoint(0, 0); // upper left
+				addBlueBoxPoint(999999, 999999); // lower right
+				this.invalidate();
 			}
 
 			onTouchEventHandled = true;
 			break;
 
 		case MotionEvent.ACTION_UP:
-			MyLog.d("DrawingView", "ACTION_UP");
+			// Local broadcast intent. Used to play action up sound.
+			intent = new Intent(MainActivity.ACTION_UP_BROADCAST_KEY);
 
+			// Determine which view object has been released.
+			// Play action up sound if a box is released.
 			if (isRedBoxMoving) {
 				isRedBoxMoving = false;
+				LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
 				MyLog.d("DrawingView", "onTouchEvent; RED_BOX action_up; X:" + event.getX() + " Y:" + event.getY());
 				addRedBoxPoint(mRedBox.getBoxCenterX(), mRedBox.getBoxCenterY());
-			}
 
-			if (isBlueBoxMoving) {
+			} else if (isBlueBoxMoving) {
 				isBlueBoxMoving = false;
+				LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
 				MyLog.d("DrawingView", "onTouchEvent; BLUE_BOX action_up; X:" + event.getX() + " Y:" + event.getY());
 				addBlueBoxPoint(mBlueBox.getBoxCenterX(), mBlueBox.getBoxCenterY());
+
+			} else if (isResetButtonTouched) {
+				isResetButtonTouched = false;
+				MyLog.d("DrawingView", "onTouchEvent; RESET action_up; X:" + event.getX() + " Y:" + event.getY());
 			}
 			onTouchEventHandled = true;
+			this.invalidate();
 			break;
 
 		case MotionEvent.ACTION_MOVE:
-
+			// Move the selected box
 			if (isRedBoxMoving) {
 				//MyLog.w("DrawingView", "onTouchEvent; RED_BOX action_move; X:" + event.getX() + " Y:" + event.getY());
 				int historySize = event.getHistorySize();
@@ -111,12 +152,10 @@ public class DrawingView extends View {
 						addRedBoxPoint(event.getHistoricalX(i), event.getHistoricalY(i));
 					}
 				}
-
 				addRedBoxPoint(event.getX(), event.getY());
 				this.invalidate();
-			}
 
-			if (isBlueBoxMoving) {
+			} else if (isBlueBoxMoving) {
 				//MyLog.w("DrawingView", "onTouchEvent; BKUE_BOX action_move; X:" + event.getX() + " Y:" + event.getY());
 				int historySize = event.getHistorySize();
 				if (historySize > 0) {
@@ -124,7 +163,6 @@ public class DrawingView extends View {
 						addBlueBoxPoint(event.getHistoricalX(i), event.getHistoricalY(i));
 					}
 				}
-
 				addBlueBoxPoint(event.getX(), event.getY());
 				this.invalidate();
 			}
@@ -160,6 +198,15 @@ public class DrawingView extends View {
 			mCanvas.drawRect(mRedBox.getBoxStrokeRect(), mRedBox.getStrokePaint());
 		}
 		mRedBox.setPrevBoxRect(x, y);
+
+		if (isResetButtonTouched) {
+			mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getFillPaint_pressed());
+		} else {
+			mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getFillPaint_default());
+		}
+		mCanvas.drawText(mResetButton.getText(), mResetButton.getTextStaryX(), mResetButton.getTextStartY(),
+				mResetButton.getTextPaint());
+		mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getStrokePaint());
 	}
 
 	private void addBlueBoxPoint(float x, float y) {
@@ -172,7 +219,6 @@ public class DrawingView extends View {
 				mCanvas.drawRect(mRedBox.getBoxRect(), mRedBox.getFillPaint());
 			}
 		}
-
 		// set the new blue box location and draw it
 		mBlueBox.setBoxRect(x, y);
 		mCanvas.drawRect(mBlueBox.getBoxRect(), mBlueBox.getFillPaint());
@@ -181,6 +227,15 @@ public class DrawingView extends View {
 			mCanvas.drawRect(mBlueBox.getBoxStrokeRect(), mRedBox.getStrokePaint());
 		}
 		mBlueBox.setPrevBoxRect(x, y);
+
+		if (isResetButtonTouched) {
+			mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getFillPaint_pressed());
+		} else {
+			mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getFillPaint_default());
+		}
+		mCanvas.drawText(mResetButton.getText(), mResetButton.getTextStaryX(), mResetButton.getTextStartY(),
+				mResetButton.getTextPaint());
+		mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getStrokePaint());
 	}
 
 	@Override
@@ -193,6 +248,7 @@ public class DrawingView extends View {
 
 		mRedBox.setWorldRect(worldRect);
 		mBlueBox.setWorldRect(worldRect);
+		mResetButton.setWorldRect(worldRect);
 
 		mBackgroundPaint.setStyle(Paint.Style.FILL);
 		mBackgroundPaint.setColor(Color.BLACK);
@@ -204,68 +260,12 @@ public class DrawingView extends View {
 	}
 
 	@Override
-	protected void onAttachedToWindow() {
-		MyLog.d("DrawingView", "onAttachedToWindow");
-		// TODO Auto-generated method stub
-		super.onAttachedToWindow();
-	}
-
-	@Override
-	protected int[] onCreateDrawableState(int extraSpace) {
-		MyLog.d("DrawingView", "onCreateDrawableState");
-		// TODO Auto-generated method stub
-		return super.onCreateDrawableState(extraSpace);
-	}
-
-	@Override
-	protected void onDetachedFromWindow() {
-		MyLog.d("DrawingView", "onDetachedFromWindow");
-		// TODO Auto-generated method stub
-		super.onDetachedFromWindow();
-	}
-
-	@Override
-	protected void onFinishInflate() {
-		MyLog.d("DrawingView", "onFinishInflate");
-		// TODO Auto-generated method stub
-		super.onFinishInflate();
-	}
-
-	@Override
 	protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
 		MyLog.d("DrawingView", "onLayout");
-		// TODO Auto-generated method stub
+		// set show the initial box in their proper locations
 		addRedBoxPoint(mInitialRedBoxCenterX, mInitialRedBoxCenterY);
 		addBlueBoxPoint(mInitialBlueBoxCenterX, mInitialBlueBoxCenterY);
 		super.onLayout(changed, left, top, right, bottom);
-	}
-
-	@Override
-	protected void onRestoreInstanceState(Parcelable state) {
-		MyLog.d("DrawingView", "onRestoreInstanceState");
-		// TODO Auto-generated method stub
-		super.onRestoreInstanceState(state);
-	}
-
-	@Override
-	protected Parcelable onSaveInstanceState() {
-		MyLog.d("DrawingView", "onSaveInstanceState");
-		// TODO Auto-generated method stub
-		return super.onSaveInstanceState();
-	}
-
-	@Override
-	protected boolean onSetAlpha(int alpha) {
-		MyLog.d("DrawingView", "onSetAlpha");
-		// TODO Auto-generated method stub
-		return super.onSetAlpha(alpha);
-	}
-
-	@Override
-	protected void onWindowVisibilityChanged(int visibility) {
-		MyLog.d("DrawingView", "onWindowVisibilityChanged");
-		// TODO Auto-generated method stub
-		super.onWindowVisibilityChanged(visibility);
 	}
 
 	public void InitializeRedBoxLocation(float redBoxCenterX, float redBoxCenterY) {

@@ -3,6 +3,12 @@ package com.lbconsulting.homework254_lorenbak;
 import android.graphics.Paint;
 import android.graphics.RectF;
 
+/**
+ * A class to hold box info
+ * 
+ * @author Loren
+ * 
+ */
 public class DrawingBox {
 	private Paint mFillPaint = new Paint();
 	private Paint mStrokePaint = new Paint();
@@ -67,6 +73,14 @@ public class DrawingBox {
 		mWorldRect = worldRect;
 	}
 
+	/**
+	 * 
+	 * @param x
+	 *            = horizontal box center
+	 * @param y
+	 *            = vertical box center
+	 * @return the box rectangle
+	 */
 	private RectF populateBoxRect(float x, float y) {
 
 		RectF resultRect = new RectF();
@@ -76,6 +90,8 @@ public class DrawingBox {
 		float right = x + mHalfBoxSize;
 		float bottom = y + mHalfBoxSize;
 
+		// check if the box is outside of it's world ...
+		// if so, restrict box to the world's boundaries
 		if (left < mWorldRect.left) {
 			left = mWorldRect.left;
 			right = mWorldRect.left + mBoxSize;
@@ -99,8 +115,24 @@ public class DrawingBox {
 		return resultRect;
 	}
 
+	/**
+	 * 
+	 * @param x
+	 *            = touch horizontal location
+	 * @param y
+	 *            = touch vertical location
+	 * @return true if x,y is contained within the box rectangle
+	 */
 	public boolean isMoving(float x, float y) {
 		return mBoxRect.contains(x, y);
+		/*		
+				boolean result = false;
+				if (x >= mBoxRect.left && x <= mBoxRect.right) {
+					if (y >= mBoxRect.top && y <= mBoxRect.bottom) {
+						result = true;
+					}
+				}
+				return result;*/
 	}
 
 	public float getBoxCenterX() {
@@ -113,6 +145,7 @@ public class DrawingBox {
 
 	public RectF getBoxStrokeRect() {
 		mBoxStrokeRect = new RectF();
+		// box stroke is located inside the box's boundaries
 		float left = mBoxRect.left + mHalfStrokeSize;
 		float top = mBoxRect.top + mHalfStrokeSize;
 		float right = mBoxRect.right - mHalfStrokeSize;
