@@ -19,6 +19,7 @@ public class ResetButton {
 	private Paint mTextPaint = new Paint();
 
 	private String btnText = "Reset";
+	private float textMarginValue = (float) 0.15;
 
 	private float btnHeight = 0;
 	private float btnWidth = 0;
@@ -49,7 +50,9 @@ public class ResetButton {
 		getTextPaint().setStyle(Paint.Style.FILL);
 		getTextPaint().setColor(Color.BLACK);
 		getTextPaint().setAntiAlias(true);
-		getTextPaint().setTextSize(50);
+		float textWidth = width * (1 - textMarginValue);
+		int textSize = determineMaxTextSize(btnText, textWidth);
+		getTextPaint().setTextSize(textSize);
 	}
 
 	public String getText() {
@@ -70,6 +73,27 @@ public class ResetButton {
 
 		btnRect.set(left, top, right, bottom);
 	}
+
+	/**
+	 * Retrieve the maximum text size to fit in a given width.
+	 * 
+	 * @param str
+	 *            (String): Text to check for size.
+	 * @param maxWidth
+	 *            (float): Maximum allowed width.
+	 * @return (int): The desired text size.
+	 */
+	private int determineMaxTextSize(String str, float maxWidth)
+	{
+		int size = 0;
+		Paint paint = new Paint();
+
+		do {
+			paint.setTextSize(++size);
+		} while (paint.measureText(str) < maxWidth);
+
+		return size;
+	} //End getMaxTextSize()
 
 	public Paint getFillPaint_default() {
 		return mFillPaint_default;
@@ -93,17 +117,11 @@ public class ResetButton {
 
 	public boolean isResetButtonTouched(float x, float y) {
 		return btnRect.contains(x, y);
-		/*		boolean result = false;
-				if (x >= btnRect.left && x <= btnRect.right) {
-					if (y >= btnRect.top && y <= btnRect.bottom) {
-						result = true;
-					}
-				}
-				return result;*/
 	}
 
-	public float getTextStaryX() {
-		return btnRect.left + btnHeight / 4;
+	public float getTextStartX() {
+		float width = btnWidth * textMarginValue / 2;
+		return btnRect.left + width;
 	}
 
 	public float getTextStartY() {

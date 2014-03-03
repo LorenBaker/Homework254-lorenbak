@@ -204,7 +204,7 @@ public class DrawingView extends View {
 		} else {
 			mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getFillPaint_default());
 		}
-		mCanvas.drawText(mResetButton.getText(), mResetButton.getTextStaryX(), mResetButton.getTextStartY(),
+		mCanvas.drawText(mResetButton.getText(), mResetButton.getTextStartX(), mResetButton.getTextStartY(),
 				mResetButton.getTextPaint());
 		mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getStrokePaint());
 	}
@@ -233,7 +233,7 @@ public class DrawingView extends View {
 		} else {
 			mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getFillPaint_default());
 		}
-		mCanvas.drawText(mResetButton.getText(), mResetButton.getTextStaryX(), mResetButton.getTextStartY(),
+		mCanvas.drawText(mResetButton.getText(), mResetButton.getTextStartX(), mResetButton.getTextStartY(),
 				mResetButton.getTextPaint());
 		mCanvas.drawRect(mResetButton.getResetButtonRect(), mResetButton.getStrokePaint());
 	}
